@@ -130,16 +130,35 @@ ISR(TCB2_INT_vect) {
     TCB2.INTFLAGS = TCB_CAPT_bm;
 }
 
-// Returns the actual frequency achieved in centi-Hz, which may differ from freq_cHz
-// because CCMP is an integer — only discrete frequencies are possible.
-// The nearest representable frequency is always chosen (round, not truncate).
+// TCB INT mode — all three outputs (OUTPUT0/PA2, OUTPUT1/PA3, OUTPUT2/PC0) use
+// the same function with their respective TCB instance passed by reference.
 //
-// Step sizes at 1 MHz CLKTCA (worst case, near 10 kHz):
-//   At  1 kHz: ±2 Hz steps     (CCMP ~499)
-//   At  5 kHz: ±50 Hz steps    (CCMP ~99)
-//   At 10 kHz: ±200 Hz steps   (CCMP ~49)
-// These are a hard hardware limit — the only way to get finer steps is a higher
-// source clock, but that would raise the minimum achievable frequency.
+// Architecture:
+//   • Si5351  handles everything above the TCB crossover frequency (~4 kHz).
+//   • TCB0/1/2 handle everything below it, where Si5351 accuracy degrades.
+//
+// Clock source: CLKTCA = F_CPU / 16 = 1 MHz (fixed — TCA0 stays in normal
+// free-running mode with DIV16 and is never reconfigured at runtime).
+//
+// Formula:  f = CLKTCA / (2 × (CCMP + 1))
+//
+// Two clock sources are used to maximise precision across the full range:
+//
+//   CLKDIV1 = 16 MHz  for freqHz > 122 Hz:
+//     At  200 Hz : step ≈   0.003 Hz   (CCMP ≈ 39999)
+//     At  500 Hz : step ≈   0.031 Hz   (CCMP ≈ 15999)
+//     At 1000 Hz : step ≈   0.125 Hz   (CCMP ≈  7999)
+//     At 2000 Hz : step ≈   0.500 Hz   (CCMP ≈  3999)
+//     At 4000 Hz : step ≈   2.000 Hz   (CCMP ≈  1999)
+//     Minimum frequency: 16 000 000 / (2 × 65536) = 122 Hz
+//
+//   CLKTCA = 1 MHz  for freqHz ≤ 122 Hz  (TCA0 fixed DIV16):
+//     At    8 Hz : step ≈   0.001 Hz   (CCMP ≈ 62499)
+//     At   50 Hz : step ≈   0.010 Hz   (CCMP ≈  9999)
+//     At  100 Hz : step ≈   0.020 Hz   (CCMP ≈  4999)
+//     Minimum frequency: 1 000 000 / (2 × 65536) ≈ 7.63 Hz
+//
+// Returns the actual frequency achieved in centi-Hz.
 uint32_t setTCBFrequency(TCB_t& tcb, const uint32_t freq_cHz) {
     if (freq_cHz == 0) {
         tcb.CTRLA   = 0;
@@ -149,19 +168,35 @@ uint32_t setTCBFrequency(TCB_t& tcb, const uint32_t freq_cHz) {
 
     const auto freqHz = static_cast<uint32_t>(static_cast<uint64_t>(freq_cHz) / 100ULL);
 
+    // Clock source selection — two ranges, trading minimum frequency for step resolution:
+    //
+    //   CLKDIV1  (16 MHz): freqHz > 122 Hz
+    //     → step ≈ f² / 8 000 000  e.g. ~2 Hz @ 4 kHz, ~0.5 Hz @ 2 kHz
+    //     → minimum frequency: 16 000 000 / (2 × 65536) = 122 Hz
+    //
+    //   CLKTCA   ( 1 MHz): freqHz ≤ 122 Hz  (TCA0 fixed at DIV16)
+    //     → step ≈ f² / 500 000   e.g. ~0.02 Hz @ 100 Hz
+    //     → minimum frequency: 1 000 000 / (2 × 65536) ≈ 7.63 Hz
+    //
+    // The crossover at 122 Hz is the natural boundary: it is both the minimum
+    // representable frequency on CLKDIV1 and a point where CLKTCA already has
+    // sub-0.02 Hz steps, so no precision is lost by switching there.
+    //
+    // All three TCBs share CLKTCA, but each TCB independently selects CLKDIV1
+    // or CLKTCA via its own CLKSEL bits — they do not interfere with each other.
     uint8_t clkSel;
     uint32_t clkHz;
-    if (freqHz > 125000UL) {
+    if (freqHz > 122UL) {
         clkSel = TCB_CLKSEL_CLKDIV1_gc;
-        clkHz  = F_CPU;
+        clkHz  = F_CPU;         // 16 MHz — fine steps above 122 Hz
     } else {
         clkSel = TCB_CLKSEL_CLKTCA_gc;
-        clkHz  = F_CPU / 16UL;
+        clkHz  = F_CPU / 16UL; // 1 MHz  — fine steps below 122 Hz
     }
 
-    // Round to nearest: compute exact half-period, then pick the closer of
-    // floor and ceil. This halves the maximum error vs pure truncation.
-    const uint32_t half_x2 = clkHz / freqHz; // = 2 * exact_half (avoids float)
+    // Round to nearest representable frequency.
+    // half = number of ticks per half-period; CCMP = half - 1.
+    const uint32_t half_x2 = clkHz / freqHz;
     const uint32_t half_lo = half_x2 / 2;
     const uint32_t half_hi = (half_x2 + 1) / 2;
 
@@ -169,11 +204,9 @@ uint32_t setTCBFrequency(TCB_t& tcb, const uint32_t freq_cHz) {
     if (half_lo == 0) {
         half = 1;
     } else {
-        // actual freqs for each candidate
-        const uint32_t f_lo_x2   = clkHz / half_lo; // proportional to freq_lo
+        const uint32_t f_lo_x2   = clkHz / half_lo;
         const uint32_t f_hi_x2   = clkHz / half_hi;
         const uint32_t target_x2 = 2 * freqHz;
-        // pick whichever is closer to target
         half = (target_x2 - f_lo_x2 <= f_hi_x2 - target_x2) ? half_lo : half_hi;
         if (half > 0x10000) half = 0x10000;
     }
@@ -238,17 +271,15 @@ void initRTCMillis() {
 }
 
 void initTCA() {
-    // Reconfigure TCA0 to SINGLE mode with DIV16 prescaler (1 MHz).
-    // The core leaves TCA in SPLIT mode with DIV64 (250 kHz). We don't use PWM or
-    // analogWrite(), so SPLIT mode is unnecessary. SINGLE mode is simpler.
+    // Reconfigure TCA0 to SINGLE mode with a fixed DIV16 prescaler (CLKTCA = 1 MHz).
+    // TCA is used solely as a clock source for TCB0/TCB1/TCB2 via CLKTCA — it is
+    // never reconfigured at runtime. This keeps CLKTCA stable and predictable.
     //
-    // CLKTCA fed to TCBs is the TCA prescaler output — it is identical in both SINGLE
-    // and SPLIT modes, so switching modes does not affect TCB frequency generation.
-    // At 16 MHz / 16 = 1 MHz, most sub-10 kHz frequencies are exactly representable
-    // as integer CCMP values (vs 250 kHz where 2 kHz, 4 kHz, 10 kHz all had errors).
+    // At 1 MHz, most sub-5 kHz frequencies are exactly representable as integer
+    // CCMP values, giving clean step behaviour across the TCB operating range.
     TCA0.SINGLE.CTRLA = 0; // disable while reconfiguring
-    TCA0.SINGLE.CTRLB = TCA_SINGLE_WGMODE_NORMAL_gc; // normal (free-running) mode
-    TCA0.SINGLE.PER   = 0xFFFF; // full 16-bit range
+    TCA0.SINGLE.CTRLB = TCA_SINGLE_WGMODE_NORMAL_gc; // normal free-running mode
+    TCA0.SINGLE.PER   = 0xFFFF;
     TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV16_gc | TCA_SINGLE_ENABLE_bm;
 }
 
@@ -302,19 +333,33 @@ void loop() {
         last = millis();
 
         // Frequencies in centi-Hz (0.01 Hz units), matching Si5351 set_freq() convention
-        static uint32_t f0 = 50000; //  500.00 Hz
-        static uint32_t f1 = 80000; //  800.00 Hz
+        static uint32_t f0 = 50000;  //  500.00 Hz
+        static uint32_t f1 = 80000;  //  800.00 Hz
         static uint32_t f2 = 120000; // 1200.00 Hz
 
-        setTCBFrequency(TCB0, f0);
-        setTCBFrequency(TCB1, f1);
-        setTCBFrequency(TCB2, f2);
+        Serial2.print(F("TCB0 (OUTPUT0) set: "));
+        Serial2.print(static_cast<double>(f0) / 100.0, 2);
+        Serial2.print(F(" Hz, actual: "));
+        Serial2.print(static_cast<double>(setTCBFrequency(TCB0, f0)) / 100.0, 2);
+        Serial2.println(F(" Hz"));
+
+        Serial2.print(F("TCB1 (OUTPUT1) set: "));
+        Serial2.print(static_cast<double>(f1) / 100.0, 2);
+        Serial2.print(F(" Hz, actual: "));
+        Serial2.print(static_cast<double>(setTCBFrequency(TCB1, f1)) / 100.0, 2);
+        Serial2.println(F(" Hz"));
+
+        Serial2.print(F("TCB2 (OUTPUT2) set: "));
+        Serial2.print(static_cast<double>(f2) / 100.0, 2);
+        Serial2.print(F(" Hz, actual: "));
+        Serial2.print(static_cast<double>(setTCBFrequency(TCB2, f2)) / 100.0, 2);
+        Serial2.println(F(" Hz"));
 
         f0 += 10000; // +100.00 Hz
         f1 += 15000; // +150.00 Hz
         f2 += 20000; // +200.00 Hz
 
-        if (f0 > 500000) f0 = 50000; // reset at 5000.00 Hz
+        if (f0 > 500000) f0 = 50000;
         if (f1 > 500000) f1 = 80000;
         if (f2 > 500000) f2 = 120000;
     }
