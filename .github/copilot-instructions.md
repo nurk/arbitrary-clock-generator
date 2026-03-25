@@ -159,6 +159,61 @@ monitor_speed   = 115200
 
 ---
 
+## Code architecture — `OutputChannel` class
+
+Each of the three clock outputs is represented by an `OutputChannel` instance (defined in `src/OutputChannel.h` / `src/OutputChannel.cpp`).
+
+### Constructor
+
+```cpp
+OutputChannel(uint8_t selectPin, uint8_t ledPin, TCB_t& tcb, Si5351& si5351, si5351_clock siClock);
+```
+
+All members are `const` / references, initialised in the initialiser list in declaration order.
+
+### Public API
+
+| Method | Description |
+|--------|-------------|
+| `void turnOff() const` | Drives `ledPin` LOW, disables TCB (`CTRLA = 0`), disables Si5351 output. |
+| `uint32_t setFrequency(uint32_t frequencyCentiHz) const` | Routes to TCB or Si5351 based on crossover. Returns actual frequency in centi-Hz. |
+
+### Routing logic in `setFrequency`
+
+- `frequencyCentiHz <= 400000` (≤ 4000.00 Hz) → `setTCBFrequency()`
+- `frequencyCentiHz > 400000` (> 4000.00 Hz) → `setSiFrequency()`
+- Always calls `turnOff()` first, then drives `ledPin` HIGH.
+
+### `setSiFrequency`
+
+- Drives `selectPin` LOW (active-low select).
+- Calls `si5351.set_freq(frequencyCentiHz, siClock)` and enables the output.
+- Returns `frequencyCentiHz` unchanged (Si5351 provides no feedback).
+
+### `setTCBFrequency`
+
+- Drives `selectPin` HIGH (active-low select, so HIGH = Si5351 deselected).
+- Implements dual clock-source selection (see TCB section above).
+- Returns the actual frequency achieved in centi-Hz (rounded to nearest).
+
+### Three independent instances (in `main.cpp`)
+
+```cpp
+OutputChannel outputChannel0(SELECT0, OUTPUT_LED0, TCB0, si5351, SI5351_CLK0);
+OutputChannel outputChannel1(SELECT1, OUTPUT_LED1, TCB1, si5351, SI5351_CLK1);
+OutputChannel outputChannel2(SELECT2, OUTPUT_LED2, TCB2, si5351, SI5351_CLK2);
+```
+
+ISRs remain in `main.cpp` (must be, as they are hardware-vector functions):
+
+```cpp
+ISR(TCB0_INT_vect) { PORTA.OUTTGL = PIN2_bm; TCB0.INTFLAGS = TCB_CAPT_bm; }
+ISR(TCB1_INT_vect) { PORTA.OUTTGL = PIN3_bm; TCB1.INTFLAGS = TCB_CAPT_bm; }
+ISR(TCB2_INT_vect) { PORTC.OUTTGL = PIN0_bm; TCB2.INTFLAGS = TCB_CAPT_bm; }
+```
+
+---
+
 ## Libraries
 
 | Library            | Purpose              | URL / package name                        |

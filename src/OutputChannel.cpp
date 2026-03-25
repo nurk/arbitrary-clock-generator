@@ -7,9 +7,9 @@ OutputChannel::OutputChannel(const uint8_t selectPin,
                              const si5351_clock siClock) :
     selectPin(selectPin),
     ledPin(ledPin),
+    tcb(tcb),
     si5351(si5351),
-    siClock(siClock),
-    tcb(tcb) {
+    siClock(siClock) {
 }
 
 void OutputChannel::turnOff() const {

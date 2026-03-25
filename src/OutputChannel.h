@@ -17,9 +17,9 @@ public:
 private:
     const uint8_t selectPin;
     const uint8_t ledPin;
+    TCB_t& tcb;
     Si5351& si5351;
     const si5351_clock siClock;
-    TCB_t& tcb;
 
     uint32_t setTCBFrequency(uint32_t frequencyCentiHz) const;
     uint32_t setSiFrequency(uint32_t frequencyCentiHz) const;
