@@ -18,6 +18,7 @@
 #include <hd44780.h>
 #include <hd44780ioClass/hd44780_I2Cexp.h>
 #include <si5351.h>
+#include <OutputChannel.h>
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -50,6 +51,24 @@ int encoderPosition = 0;
 
 hd44780_I2Cexp lcd(0x27);
 Si5351 si5351;
+
+OutputChannel outputChannel0(SELECT0,
+                             OUTPUT_LED0,
+                             TCB0,
+                             si5351,
+                             SI5351_CLK0);
+
+OutputChannel outputChannel1(SELECT1,
+                             OUTPUT_LED1,
+                             TCB1,
+                             si5351,
+                             SI5351_CLK1);
+
+OutputChannel outputChannel2(SELECT2,
+                             OUTPUT_LED2,
+                             TCB2,
+                             si5351,
+                             SI5351_CLK2);
 
 void processInputs() {
     rotaryButton.read();
@@ -130,100 +149,6 @@ ISR(TCB2_INT_vect) {
     TCB2.INTFLAGS = TCB_CAPT_bm;
 }
 
-// TCB INT mode — all three outputs (OUTPUT0/PA2, OUTPUT1/PA3, OUTPUT2/PC0) use
-// the same function with their respective TCB instance passed by reference.
-//
-// Architecture:
-//   • Si5351  handles everything above the TCB crossover frequency (~4 kHz).
-//   • TCB0/1/2 handle everything below it, where Si5351 accuracy degrades.
-//
-// Clock source: CLKTCA = F_CPU / 16 = 1 MHz (fixed — TCA0 stays in normal
-// free-running mode with DIV16 and is never reconfigured at runtime).
-//
-// Formula:  f = CLKTCA / (2 × (CCMP + 1))
-//
-// Two clock sources are used to maximise precision across the full range:
-//
-//   CLKDIV1 = 16 MHz  for freqHz > 122 Hz:
-//     At  200 Hz : step ≈   0.003 Hz   (CCMP ≈ 39999)
-//     At  500 Hz : step ≈   0.031 Hz   (CCMP ≈ 15999)
-//     At 1000 Hz : step ≈   0.125 Hz   (CCMP ≈  7999)
-//     At 2000 Hz : step ≈   0.500 Hz   (CCMP ≈  3999)
-//     At 4000 Hz : step ≈   2.000 Hz   (CCMP ≈  1999)
-//     Minimum frequency: 16 000 000 / (2 × 65536) = 122 Hz
-//
-//   CLKTCA = 1 MHz  for freqHz ≤ 122 Hz  (TCA0 fixed DIV16):
-//     At    8 Hz : step ≈   0.001 Hz   (CCMP ≈ 62499)
-//     At   50 Hz : step ≈   0.010 Hz   (CCMP ≈  9999)
-//     At  100 Hz : step ≈   0.020 Hz   (CCMP ≈  4999)
-//     Minimum frequency: 1 000 000 / (2 × 65536) ≈ 7.63 Hz
-//
-// Returns the actual frequency achieved in centi-Hz.
-uint32_t setTCBFrequency(TCB_t& tcb, const uint32_t freq_cHz) {
-    if (freq_cHz == 0) {
-        tcb.CTRLA   = 0;
-        tcb.INTCTRL = 0;
-        return 0;
-    }
-
-    const auto freqHz = static_cast<uint32_t>(static_cast<uint64_t>(freq_cHz) / 100ULL);
-
-    // Clock source selection — two ranges, trading minimum frequency for step resolution:
-    //
-    //   CLKDIV1  (16 MHz): freqHz > 122 Hz
-    //     → step ≈ f² / 8 000 000  e.g. ~2 Hz @ 4 kHz, ~0.5 Hz @ 2 kHz
-    //     → minimum frequency: 16 000 000 / (2 × 65536) = 122 Hz
-    //
-    //   CLKTCA   ( 1 MHz): freqHz ≤ 122 Hz  (TCA0 fixed at DIV16)
-    //     → step ≈ f² / 500 000   e.g. ~0.02 Hz @ 100 Hz
-    //     → minimum frequency: 1 000 000 / (2 × 65536) ≈ 7.63 Hz
-    //
-    // The crossover at 122 Hz is the natural boundary: it is both the minimum
-    // representable frequency on CLKDIV1 and a point where CLKTCA already has
-    // sub-0.02 Hz steps, so no precision is lost by switching there.
-    //
-    // All three TCBs share CLKTCA, but each TCB independently selects CLKDIV1
-    // or CLKTCA via its own CLKSEL bits — they do not interfere with each other.
-    uint8_t clkSel;
-    uint32_t clkHz;
-    if (freqHz > 122UL) {
-        clkSel = TCB_CLKSEL_CLKDIV1_gc;
-        clkHz  = F_CPU;         // 16 MHz — fine steps above 122 Hz
-    } else {
-        clkSel = TCB_CLKSEL_CLKTCA_gc;
-        clkHz  = F_CPU / 16UL; // 1 MHz  — fine steps below 122 Hz
-    }
-
-    // Round to nearest representable frequency.
-    // half = number of ticks per half-period; CCMP = half - 1.
-    const uint32_t half_x2 = clkHz / freqHz;
-    const uint32_t half_lo = half_x2 / 2;
-    const uint32_t half_hi = (half_x2 + 1) / 2;
-
-    uint32_t half;
-    if (half_lo == 0) {
-        half = 1;
-    } else {
-        const uint32_t f_lo_x2   = clkHz / half_lo;
-        const uint32_t f_hi_x2   = clkHz / half_hi;
-        const uint32_t target_x2 = 2 * freqHz;
-        half = (target_x2 - f_lo_x2 <= f_hi_x2 - target_x2) ? half_lo : half_hi;
-        if (half > 0x10000) half = 0x10000;
-    }
-
-    const auto ccmp         = static_cast<uint16_t>(half - 1);
-    const auto actualHz_cHz = static_cast<uint32_t>(
-        static_cast<uint64_t>(clkHz) * 100ULL / (2ULL * half));
-
-    tcb.CTRLA   = 0;
-    tcb.CTRLB   = TCB_CNTMODE_INT_gc;
-    tcb.CCMP    = ccmp;
-    tcb.INTCTRL = TCB_CAPT_bm;
-    tcb.CTRLA   = TCB_ENABLE_bm | clkSel;
-
-    return actualHz_cHz;
-}
-
 void initPins() {
     pinMode(BUTTON_A, INPUT_PULLUP);
     pinMode(BUTTON_B, INPUT_PULLUP);
@@ -299,6 +224,9 @@ void initI2CDevices() {
 
     if (si5351.init(SI5351_CRYSTAL_LOAD_10PF, 0, 0)) {
         Serial2.println(F("SI5351 initialized successfully"));
+        outputChannel0.turnOff();
+        outputChannel1.turnOff();
+        outputChannel2.turnOff();
     } else {
         Serial2.println(F("Error: SI5351 not detected"));
     }
@@ -333,26 +261,26 @@ void loop() {
         last = millis();
 
         // Frequencies in centi-Hz (0.01 Hz units), matching Si5351 set_freq() convention
-        static uint32_t f0 = 50000;  //  500.00 Hz
-        static uint32_t f1 = 80000;  //  800.00 Hz
+        static uint32_t f0 = 50000; //  500.00 Hz
+        static uint32_t f1 = 80000; //  800.00 Hz
         static uint32_t f2 = 120000; // 1200.00 Hz
 
         Serial2.print(F("TCB0 (OUTPUT0) set: "));
         Serial2.print(static_cast<double>(f0) / 100.0, 2);
         Serial2.print(F(" Hz, actual: "));
-        Serial2.print(static_cast<double>(setTCBFrequency(TCB0, f0)) / 100.0, 2);
+        Serial2.print(static_cast<double>(outputChannel0.setFrequency(f0)) / 100.0, 2);
         Serial2.println(F(" Hz"));
 
         Serial2.print(F("TCB1 (OUTPUT1) set: "));
         Serial2.print(static_cast<double>(f1) / 100.0, 2);
         Serial2.print(F(" Hz, actual: "));
-        Serial2.print(static_cast<double>(setTCBFrequency(TCB1, f1)) / 100.0, 2);
+        Serial2.print(static_cast<double>(outputChannel1.setFrequency(f1)) / 100.0, 2);
         Serial2.println(F(" Hz"));
 
         Serial2.print(F("TCB2 (OUTPUT2) set: "));
         Serial2.print(static_cast<double>(f2) / 100.0, 2);
         Serial2.print(F(" Hz, actual: "));
-        Serial2.print(static_cast<double>(setTCBFrequency(TCB2, f2)) / 100.0, 2);
+        Serial2.print(static_cast<double>(outputChannel2.setFrequency(f2)) / 100.0, 2);
         Serial2.println(F(" Hz"));
 
         f0 += 10000; // +100.00 Hz
