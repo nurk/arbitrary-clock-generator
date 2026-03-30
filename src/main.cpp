@@ -73,12 +73,12 @@ OutputChannel outputChannel2(SELECT2,
 
 OutputChannel* channels[3] = {&outputChannel0, &outputChannel1, &outputChannel2};
 UIController uiController(lcd,
-                           buttonA,
-                           buttonB,
-                           buttonC,
-                           rotaryButton,
-                           encoder,
-                           channels);
+                          buttonA,
+                          buttonB,
+                          buttonC,
+                          rotaryButton,
+                          encoder,
+                          channels);
 
 void encoderTick() {
     encoder.tick();
@@ -219,12 +219,13 @@ void initI2CDevices() {
 
     if (si5351.init(SI5351_CRYSTAL_LOAD_10PF, 0, 0)) {
         Serial2.println(F("SI5351 initialized successfully"));
-        outputChannel0.turnOff();
-        outputChannel1.turnOff();
-        outputChannel2.turnOff();
     } else {
         Serial2.println(F("Error: SI5351 not detected"));
     }
+
+    outputChannel0.turnOff();
+    outputChannel1.turnOff();
+    outputChannel2.turnOff();
 }
 
 void initUserInputs() {
