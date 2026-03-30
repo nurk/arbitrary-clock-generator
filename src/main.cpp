@@ -22,6 +22,7 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <UIController.h>
 
 #define OUTPUT0 PIN_PA2
 #define OUTPUT1 PIN_PA3
@@ -70,20 +71,14 @@ OutputChannel outputChannel2(SELECT2,
                              si5351,
                              SI5351_CLK2);
 
-void processInputs() {
-    rotaryButton.read();
-    buttonA.read();
-    buttonB.read();
-    buttonC.read();
-
-    const int newEncoderPosition = encoder.getPosition(); // NOLINT(*-narrowing-conversions)
-    if (encoderPosition != newEncoderPosition) {
-        //const int diff = newEncoderPosition - encoderPosition;
-        //lcdPage        = (lcdPage + diff + lcdController.pageCount()) % lcdController.pageCount();
-        //lcdController.update(lcdPage, opMode);
-    }
-    encoderPosition = newEncoderPosition;
-}
+OutputChannel* channels[3] = {&outputChannel0, &outputChannel1, &outputChannel2};
+UIController uiController(lcd,
+                           buttonA,
+                           buttonB,
+                           buttonC,
+                           rotaryButton,
+                           encoder,
+                           channels);
 
 void encoderTick() {
     encoder.tick();
@@ -253,7 +248,7 @@ void setup() {
 }
 
 void loop() {
-    processInputs();
+    uiController.update(false);
 
     static uint32_t last = 0;
 

@@ -12,27 +12,48 @@ OutputChannel::OutputChannel(const uint8_t selectPin,
     siClock(siClock) {
 }
 
-void OutputChannel::turnOff() const {
-    digitalWriteFast(ledPin, LOW);
-    tcb.CTRLA = 0;
+void OutputChannel::turnOff() {
+    digitalWrite(ledPin, LOW);
+    tcb.CTRLA &= ~TCB_ENABLE_bm;
     si5351.output_enable(siClock, 0);
+    isOn_ = false;
 }
 
-uint32_t OutputChannel::setFrequency(const uint32_t frequencyCentiHz) const {
+void OutputChannel::turnOn() {
+    digitalWrite(ledPin, HIGH);
+
+    if (frequencyCentiHz_ <= SWITCHOVER_FREQUENCY) {
+        tcb.CTRLA |= TCB_ENABLE_bm;
+    } else {
+        si5351.output_enable(siClock, 1);
+    }
+    isOn_ = true;
+}
+
+uint32_t OutputChannel::getFrequency() const {
+    return frequencyCentiHz_;
+}
+
+uint32_t OutputChannel::setFrequency(const uint32_t frequencyCentiHz) {
+    const boolean wasOn = isOn_;
     turnOff();
 
-    digitalWriteFast(ledPin, HIGH);
-
-    if (frequencyCentiHz <= 400000UL) {
-        return setTCBFrequency(frequencyCentiHz);
+    if (frequencyCentiHz <= SWITCHOVER_FREQUENCY) {
+        frequencyCentiHz_ = setTCBFrequency(frequencyCentiHz);
+    } else {
+        frequencyCentiHz_ = setSiFrequency(frequencyCentiHz);
     }
-    return setSiFrequency(frequencyCentiHz);
+
+    if (wasOn) {
+        turnOn();
+    }
+
+    return frequencyCentiHz_;
 }
 
 uint32_t OutputChannel::setSiFrequency(const uint32_t frequencyCentiHz) const {
-    digitalWriteFast(selectPin, LOW);
+    digitalWrite(selectPin, LOW);
     si5351.set_freq(frequencyCentiHz, siClock);
-    si5351.output_enable(siClock, 1);
     return frequencyCentiHz;
 }
 
@@ -66,7 +87,7 @@ uint32_t OutputChannel::setSiFrequency(const uint32_t frequencyCentiHz) const {
 //
 // Returns the actual frequency achieved in centi-Hz.
 uint32_t OutputChannel::setTCBFrequency(const uint32_t frequencyCentiHz) const {
-    digitalWriteFast(selectPin, HIGH);
+    digitalWrite(selectPin, HIGH);
 
     if (frequencyCentiHz == 0) {
         tcb.CTRLA   = 0;
@@ -127,7 +148,7 @@ uint32_t OutputChannel::setTCBFrequency(const uint32_t frequencyCentiHz) const {
     tcb.CTRLB   = TCB_CNTMODE_INT_gc;
     tcb.CCMP    = ccmp;
     tcb.INTCTRL = TCB_CAPT_bm;
-    tcb.CTRLA   = TCB_ENABLE_bm | clkSel;
+    tcb.CTRLA   = clkSel; // TCB_ENABLE_bm intentionally omitted — turnOn() sets it
 
     return actualHz_cHz;
 }
