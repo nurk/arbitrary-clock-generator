@@ -18,28 +18,78 @@ UIController::UIController(hd44780_I2Cexp& lcd, // NOLINT(*-pro-type-member-init
     }
 }
 
-void UIController::update(const boolean force) {
-    processInputs();
+void UIController::processInputs() {
+    rotaryButton_.read();
+    buttonA_.read();
+    buttonB_.read();
+    buttonC_.read();
 
-    if (force || millis() > lastUpdateMillis_ + 215) {
-        lcd_.clear();
-        switch (screen_) {
-            case MAIN:
-                printMainScreen();
-                break;
-            case OUTPUT_CHANNEL:
-                // todo implement output channel config screen
-                break;
-            default:
-                printMainScreen();
-                break;
+    const int newEncoderPosition = rotaryEncoder_.getPosition(); // NOLINT(*-narrowing-conversions)
+    if (encoderPosition != newEncoderPosition) {
+        const int diff = newEncoderPosition - encoderPosition;
+        if (screen_ == MAIN) {
+            outputChannelIndex_ = (outputChannelIndex_ + diff + MAX_OUTPUT_CHANNELS) % MAX_OUTPUT_CHANNELS;
+            updateScreen();
+        } else {
+            OutputChannel* outputChannel = getOutputChannel();
+            outputChannel->setFrequency(
+                max(FREQUENCY_MIN,
+                    min(FREQUENCY_MAX,
+                        outputChannel->getActualFrequency() + (diff * FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_].
+                            delta)))
+            );
+            updateScreen();
         }
-        lastUpdateMillis_ = millis();
+    }
+    encoderPosition = newEncoderPosition;
+
+    if (screen_ == MAIN) {
+        if (buttonA_.isPressed()) {
+            getOutputChannel()->turnOn();
+            updateScreen();
+        }
+
+        if (buttonB_.isPressed()) {
+            getOutputChannel()->turnOff();
+            updateScreen();
+        }
+
+        if (buttonC_.isPressed() || rotaryButton_.isPressed()) {
+            screen_ = OUTPUT_CHANNEL;
+            updateScreen();
+        }
+    } else {
+        if (buttonA_.isPressed() || buttonB_.isPressed() || buttonC_.isPressed()) {
+            screen_ = MAIN;
+            updateScreen();
+        }
+
+        if (rotaryButton_.isPressed()) {
+            frequencyAdjustmentIndex_ = (frequencyAdjustmentIndex_ + 1) % NUMBER_OF_FREQUENCY_ADJUSTMENTS;
+            updateScreen();
+        }
+    }
+}
+
+void UIController::updateScreen() const {
+    lcd_.noCursor();
+    lcd_.noBlink();
+    lcd_.clear();
+    switch (screen_) {
+        case MAIN:
+            printMainScreen();
+            break;
+        case OUTPUT_CHANNEL:
+            printOutputChannelScreen();
+            break;
+        default:
+            printMainScreen();
+            break;
     }
 }
 
 void UIController::printMainScreen() const {
-    char frequencyBuffer[21];
+    char frequencyBuffer[15];
     lcd_.setCursor(0, 0);
     if (outputChannelIndex_ == 0) {
         lcd_.print(F(">CH0: "));
@@ -69,13 +119,39 @@ void UIController::printMainScreen() const {
 
     lcd_.setCursor(3, 0);
     lcd_.print(F(" A:On B:Off C:Config"));
+
+    lcd_.setCursor(0, outputChannelIndex_);
+    lcd_.blink();
+}
+
+void UIController::printOutputChannelScreen() const {
+    char frequencyBuffer[14];
+    lcd_.setCursor(0, 0);
+    lcd_.print(F("Channel "));
+    lcd_.print(outputChannelIndex_);
+
+    lcd_.setCursor(1, 0);
+    lcd_.print(F("Set:   "));
+    getOutputChannelFrequencyPadded(outputChannels_[outputChannelIndex_]->getSetFrequency(), frequencyBuffer);
+    lcd_.print(frequencyBuffer);
+
+    lcd_.setCursor(2, 0);
+    lcd_.print(F("Real:  "));
+    getOutputChannelFrequencyPadded(outputChannels_[outputChannelIndex_]->getActualFrequency(), frequencyBuffer);
+    lcd_.print(frequencyBuffer);
+
+    lcd_.setCursor(3, 0);
+    lcd_.print(F("A|B|C: Back"));
+
+    lcd_.setCursor(FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_ + 7].col, 1);
+    lcd_.cursor();
 }
 
 void UIController::getOutputChannelFrequency(const OutputChannel* outputChannel, char* out) {
     // Input:  centi-Hz  e.g. 123456789 = 1,234,567.89 Hz
     // Output: right-aligned in 14 chars, e.g. "  10.000,00 Hz"
 
-    const uint32_t cHz     = outputChannel->getFrequency();
+    const uint32_t cHz     = outputChannel->getActualFrequency();
     const uint32_t hz      = cHz / 100;
     const uint32_t decimal = cHz % 100;
 
@@ -99,44 +175,23 @@ void UIController::getOutputChannelFrequency(const OutputChannel* outputChannel,
     strcpy(out + padding, tmp);
 }
 
-void UIController::processInputs() {
-    rotaryButton_.read();
-    buttonA_.read();
-    buttonB_.read();
-    buttonC_.read();
+void UIController::getOutputChannelFrequencyPadded(const uint32_t frequency, char* out) {
+    // Examples:
+    //   Input centi-Hz:           0  →  "00.000.000,00"
+    //   Input centi-Hz:       12345  →  "00.000.123,45"
+    //   Input centi-Hz:   123456789  →  "00.123.456,89"
+    //   Input centi-Hz: 12345678900  →  "12.345.678,00"
 
-    const int newEncoderPosition = rotaryEncoder_.getPosition(); // NOLINT(*-narrowing-conversions)
-    if (encoderPosition != newEncoderPosition) {
-        const int diff = newEncoderPosition - encoderPosition;
-        if (screen_ == MAIN) {
-            outputChannelIndex_ = (outputChannelIndex_ + diff + MAX_OUTPUT_CHANNELS) % MAX_OUTPUT_CHANNELS;
-            update(true);
-        } else {
-            OutputChannel* outputChannel = getOutputChannel();
-            outputChannel->setFrequency(max(FREQUENCY_MIN,
-                                            min(FREQUENCY_MAX,
-                                                outputChannel->getFrequency() + (diff * FREQUENCY_ADJUSTMENTS[
-                                                    frequencyAdjustmentIndex_].delta))));
-        }
-    }
-    encoderPosition = newEncoderPosition;
+    const uint32_t hz      = frequency / 100UL;
+    const uint32_t decimal = frequency % 100UL;
 
-    if (screen_ == MAIN) {
-        if (buttonA_.isPressed()) {
-            getOutputChannel()->turnOn();
-            update(true);
-        }
+    const uint32_t g0 = hz % 1000UL; // Hz  group (0–999)
+    const uint32_t g1 = (hz / 1000UL) % 1000UL; // kHz group (0–999)
+    const uint32_t g2 = (hz / 1000000UL) % 100UL; // MHz group (0–99)
 
-        if (buttonB_.isPressed()) {
-            getOutputChannel()->turnOff();
-            update(true);
-        }
-
-        if (buttonC_.isPressed() || rotaryButton_.isPressed()) {
-            screen_ = OUTPUT_CHANNEL;
-            update(true);
-        }
-    }
+    sprintf(out, "%02lu.%03lu.%03lu,%02lu", g2, g1, g0, decimal);
+    // Result is always exactly 13 characters + NUL terminator.
+    // Buffer must be at least 14 bytes.
 }
 
 OutputChannel* UIController::getOutputChannel() const {

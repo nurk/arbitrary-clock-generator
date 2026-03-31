@@ -8,7 +8,6 @@
 #include <JC_Button.h>
 #include <RotaryEncoder.h>
 
-
 class UIController {
 public:
     UIController(hd44780_I2Cexp& lcd,
@@ -18,13 +17,15 @@ public:
                  Button& rotaryButton,
                  RotaryEncoder& rotaryEncoder,
                  OutputChannel* outputChannels[3]);
-    void update(boolean force);
+    void processInputs();
+    void updateScreen() const;
 
 private:
-    void processInputs();
     OutputChannel* getOutputChannel() const;
     void printMainScreen() const;
+    void printOutputChannelScreen() const;
     static void getOutputChannelFrequency(const OutputChannel* outputChannel, char* out);
+    static void getOutputChannelFrequencyPadded(const uint32_t frequency, char* out);
 
     hd44780_I2Cexp& lcd_;
     Button& buttonA_;
@@ -39,34 +40,33 @@ private:
         OUTPUT_CHANNEL
     };
 
-    Screen screen_                  = MAIN;
-    unsigned long lastUpdateMillis_ = 0;
-    int encoderPosition             = 0;
-    int outputChannelIndex_         = 0;
-    const int MAX_OUTPUT_CHANNELS   = 3;
+    Screen screen_                = MAIN;
+    int encoderPosition           = 0;
+    int outputChannelIndex_       = 0;
+    const int MAX_OUTPUT_CHANNELS = 3;
 
-    const uint32_t FREQUENCY_MAX = 10000000000;
+    const uint32_t FREQUENCY_MAX = 9999999999;
     const uint32_t FREQUENCY_MIN = 0;
 
     struct FrequencyAdjustment {
-        uint8_t col;
+        int col;
         uint32_t delta;
     };
 
     const FrequencyAdjustment FREQUENCY_ADJUSTMENTS[10] = {
         {0, 1000000000},
-        {0, 100000000},
-        {1, 10000000},
-        {3, 1000000},
-        {4, 100000},
-        {5, 10000},
-        {7, 1000},
-        {8, 100},
-        {9, 10},
-        {11, 1}
+        {1, 100000000},
+        {3, 10000000},
+        {4, 1000000},
+        {5, 100000},
+        {7, 10000},
+        {8, 1000},
+        {9, 100},
+        {11, 10},
+        {12, 1}
     };
-    int8_t frequencyAdjustmentIndex_              = 0;
-    const uint8_t NUMBER_OF_FREQUENCY_ADJUSTMENTS = 9;
+    int frequencyAdjustmentIndex_             = 0;
+    const int NUMBER_OF_FREQUENCY_ADJUSTMENTS = 10;
 };
 
 #endif //ARBITRARY_CLOCK_GENERATOR_UICONTROLLER_H
