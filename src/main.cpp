@@ -48,7 +48,6 @@ Button buttonC(BUTTON_C);
 Button rotaryButton(ROTARY_PUSH);
 
 RotaryEncoder encoder(ROTARY_A, ROTARY_B, RotaryEncoder::LatchMode::FOUR3);
-int encoderPosition = 0;
 
 hd44780_I2Cexp lcd(0x27);
 Si5351 si5351;

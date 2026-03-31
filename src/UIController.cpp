@@ -32,11 +32,10 @@ void UIController::processInputs() {
             updateScreen();
         } else {
             OutputChannel* outputChannel = getOutputChannel();
+            const int64_t newFreq = static_cast<int64_t>(outputChannel->getSetFrequency())
+                                   + diff * FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_].delta;
             outputChannel->setFrequency(
-                max(FREQUENCY_MIN,
-                    min(FREQUENCY_MAX,
-                        outputChannel->getActualFrequency() + (diff * FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_].
-                            delta)))
+                static_cast<uint64_t>(max(FREQUENCY_MIN, min(FREQUENCY_MAX, newFreq)))
             );
             updateScreen();
         }
@@ -143,7 +142,7 @@ void UIController::printOutputChannelScreen() const {
     lcd_.setCursor(3, 0);
     lcd_.print(F("A|B|C: Back"));
 
-    lcd_.setCursor(FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_ + 7].col, 1);
+    lcd_.setCursor(FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_].col + 7, 1);
     lcd_.cursor();
 }
 
@@ -151,13 +150,13 @@ void UIController::getOutputChannelFrequency(const OutputChannel* outputChannel,
     // Input:  centi-Hz  e.g. 123456789 = 1,234,567.89 Hz
     // Output: right-aligned in 14 chars, e.g. "  10.000,00 Hz"
 
-    const uint32_t cHz     = outputChannel->getActualFrequency();
-    const uint32_t hz      = cHz / 100;
-    const uint32_t decimal = cHz % 100;
+    const uint64_t cHz     = outputChannel->getActualFrequency();
+    const uint64_t hz      = cHz / 100;
+    const uint64_t decimal = cHz % 100;
 
-    const uint32_t g0 = hz % 1000;
-    const uint32_t g1 = (hz / 1000) % 1000;
-    const uint32_t g2 = hz / 1000000;
+    const uint64_t g0 = hz % 1000;
+    const uint64_t g1 = (hz / 1000) % 1000;
+    const uint64_t g2 = hz / 1000000;
 
     char tmp[15];
     if (g2 > 0) {
@@ -175,19 +174,19 @@ void UIController::getOutputChannelFrequency(const OutputChannel* outputChannel,
     strcpy(out + padding, tmp);
 }
 
-void UIController::getOutputChannelFrequencyPadded(const uint32_t frequency, char* out) {
+void UIController::getOutputChannelFrequencyPadded(const uint64_t frequency, char* out) {
     // Examples:
     //   Input centi-Hz:           0  →  "00.000.000,00"
     //   Input centi-Hz:       12345  →  "00.000.123,45"
     //   Input centi-Hz:   123456789  →  "00.123.456,89"
     //   Input centi-Hz: 12345678900  →  "12.345.678,00"
 
-    const uint32_t hz      = frequency / 100UL;
-    const uint32_t decimal = frequency % 100UL;
+    const uint64_t hz      = frequency / 100UL;
+    const uint64_t decimal = frequency % 100UL;
 
-    const uint32_t g0 = hz % 1000UL; // Hz  group (0–999)
-    const uint32_t g1 = (hz / 1000UL) % 1000UL; // kHz group (0–999)
-    const uint32_t g2 = (hz / 1000000UL) % 100UL; // MHz group (0–99)
+    const uint64_t g0 = hz % 1000UL;             // Hz  group (0–999)
+    const uint64_t g1 = (hz / 1000UL) % 1000UL;  // kHz group (0–999)
+    const uint64_t g2 = (hz / 1000000UL) % 100UL; // MHz group (0–99)
 
     sprintf(out, "%02lu.%03lu.%03lu,%02lu", g2, g1, g0, decimal);
     // Result is always exactly 13 characters + NUL terminator.

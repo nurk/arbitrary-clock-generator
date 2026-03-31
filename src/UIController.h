@@ -25,7 +25,7 @@ private:
     void printMainScreen() const;
     void printOutputChannelScreen() const;
     static void getOutputChannelFrequency(const OutputChannel* outputChannel, char* out);
-    static void getOutputChannelFrequencyPadded(const uint32_t frequency, char* out);
+    static void getOutputChannelFrequencyPadded(uint64_t frequency, char* out);
 
     hd44780_I2Cexp& lcd_;
     Button& buttonA_;
@@ -45,12 +45,12 @@ private:
     int outputChannelIndex_       = 0;
     const int MAX_OUTPUT_CHANNELS = 3;
 
-    const uint32_t FREQUENCY_MAX = 9999999999;
-    const uint32_t FREQUENCY_MIN = 0;
+    const int64_t FREQUENCY_MAX = 9999999999LL;
+    const int64_t FREQUENCY_MIN = 0LL;
 
     struct FrequencyAdjustment {
         int col;
-        uint32_t delta;
+        int64_t delta;
     };
 
     const FrequencyAdjustment FREQUENCY_ADJUSTMENTS[10] = {

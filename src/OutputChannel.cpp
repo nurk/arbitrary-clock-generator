@@ -23,22 +23,24 @@ void OutputChannel::turnOn() {
     digitalWrite(ledPin, HIGH);
 
     if (actualFrequencyCentiHz_ <= SWITCHOVER_FREQUENCY) {
-        tcb.CTRLA |= TCB_ENABLE_bm;
+        if (actualFrequencyCentiHz_ != 0) {
+            tcb.CTRLA |= TCB_ENABLE_bm;
+        }
     } else {
         si5351.output_enable(siClock, 1);
     }
     isOn_ = true;
 }
 
-uint32_t OutputChannel::getActualFrequency() const {
+uint64_t OutputChannel::getActualFrequency() const {
     return actualFrequencyCentiHz_;
 }
 
-uint32_t OutputChannel::getSetFrequency() const {
+uint64_t OutputChannel::getSetFrequency() const {
     return setFrequencyCentiHz_;
 }
 
-uint32_t OutputChannel::setFrequency(const uint32_t frequencyCentiHz) {
+uint64_t OutputChannel::setFrequency(const uint64_t frequencyCentiHz) {
     const boolean wasOn = isOn_;
     turnOff();
 
@@ -57,7 +59,7 @@ uint32_t OutputChannel::setFrequency(const uint32_t frequencyCentiHz) {
     return actualFrequencyCentiHz_;
 }
 
-uint32_t OutputChannel::setSiFrequency(const uint32_t frequencyCentiHz) const {
+uint64_t OutputChannel::setSiFrequency(const uint64_t frequencyCentiHz) const {
     digitalWrite(selectPin, LOW);
     si5351.set_freq(frequencyCentiHz, siClock);
     return frequencyCentiHz;
@@ -92,7 +94,7 @@ uint32_t OutputChannel::setSiFrequency(const uint32_t frequencyCentiHz) const {
 //     Minimum frequency: 1 000 000 / (2 × 65536) ≈ 7.63 Hz
 //
 // Returns the actual frequency achieved in centi-Hz.
-uint32_t OutputChannel::setTCBFrequency(const uint32_t frequencyCentiHz) const {
+uint64_t OutputChannel::setTCBFrequency(const uint64_t frequencyCentiHz) const {
     digitalWrite(selectPin, HIGH);
 
     if (frequencyCentiHz == 0) {
