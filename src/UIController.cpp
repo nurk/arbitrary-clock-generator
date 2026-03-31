@@ -32,8 +32,8 @@ void UIController::processInputs() {
             updateScreen();
         } else {
             OutputChannel* outputChannel = getOutputChannel();
-            const int64_t newFreq = static_cast<int64_t>(outputChannel->getSetFrequency())
-                                   + diff * FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_].delta;
+            const int64_t newFreq        = static_cast<int64_t>(outputChannel->getSetFrequency())
+                + diff * FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_].delta;
             outputChannel->setFrequency(
                 static_cast<uint64_t>(max(FREQUENCY_MIN, min(FREQUENCY_MAX, newFreq)))
             );
@@ -184,8 +184,8 @@ void UIController::getOutputChannelFrequencyPadded(const uint64_t frequency, cha
     const uint64_t hz      = frequency / 100UL;
     const uint64_t decimal = frequency % 100UL;
 
-    const uint64_t g0 = hz % 1000UL;             // Hz  group (0–999)
-    const uint64_t g1 = (hz / 1000UL) % 1000UL;  // kHz group (0–999)
+    const uint64_t g0 = hz % 1000UL; // Hz  group (0–999)
+    const uint64_t g1 = (hz / 1000UL) % 1000UL; // kHz group (0–999)
     const uint64_t g2 = (hz / 1000000UL) % 100UL; // MHz group (0–99)
 
     sprintf(out, "%02lu.%03lu.%03lu,%02lu", g2, g1, g0, decimal);
