@@ -41,7 +41,7 @@ private:
     };
 
     Screen screen_                = MAIN;
-    int encoderPosition           = 0;
+    long encoderPosition          = 0;
     int outputChannelIndex_       = 0;
     const int MAX_OUTPUT_CHANNELS = 3;
 

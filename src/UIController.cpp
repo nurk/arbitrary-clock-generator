@@ -24,11 +24,12 @@ void UIController::processInputs() {
     buttonB_.read();
     buttonC_.read();
 
-    const int newEncoderPosition = rotaryEncoder_.getPosition(); // NOLINT(*-narrowing-conversions)
+    const long newEncoderPosition = rotaryEncoder_.getPosition();
     if (encoderPosition != newEncoderPosition) {
-        const int diff = newEncoderPosition - encoderPosition;
+        const long diff = newEncoderPosition - encoderPosition;
         if (screen_ == MAIN) {
-            outputChannelIndex_ = (outputChannelIndex_ + diff + MAX_OUTPUT_CHANNELS) % MAX_OUTPUT_CHANNELS;
+            outputChannelIndex_ = static_cast<int>(outputChannelIndex_ + diff + MAX_OUTPUT_CHANNELS) %
+                MAX_OUTPUT_CHANNELS;
             updateScreen();
         } else {
             OutputChannel* outputChannel = getOutputChannel();
