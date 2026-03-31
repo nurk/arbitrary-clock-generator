@@ -22,8 +22,8 @@ void OutputChannel::turnOff() {
 void OutputChannel::turnOn() {
     digitalWrite(ledPin, HIGH);
 
-    if (actualFrequencyCentiHz_ <= SWITCHOVER_FREQUENCY) {
-        if (actualFrequencyCentiHz_ != 0) {
+    if (setFrequencyCentiHz_ <= SWITCHOVER_FREQUENCY) {
+        if (setFrequencyCentiHz_ != 0) {
             tcb.CTRLA |= TCB_ENABLE_bm;
         }
     } else {

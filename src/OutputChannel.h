@@ -26,7 +26,7 @@ private:
     const si5351_clock siClock;
     uint64_t actualFrequencyCentiHz_    = 0;
     uint64_t setFrequencyCentiHz_       = 0;
-    const uint64_t SWITCHOVER_FREQUENCY = 400000UL;;
+    const uint64_t SWITCHOVER_FREQUENCY = 400000UL;
     boolean isOn_                       = false;
 
     uint64_t setTCBFrequency(uint64_t frequencyCentiHz) const;

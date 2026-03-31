@@ -28,7 +28,8 @@ void UIController::processInputs() {
     if (encoderPosition != newEncoderPosition) {
         const long diff = newEncoderPosition - encoderPosition;
         if (screen_ == MAIN) {
-            outputChannelIndex_ = static_cast<int>(outputChannelIndex_ + diff + MAX_OUTPUT_CHANNELS) %
+            outputChannelIndex_ = static_cast<int>(outputChannelIndex_ + diff % MAX_OUTPUT_CHANNELS +
+                    MAX_OUTPUT_CHANNELS) %
                 MAX_OUTPUT_CHANNELS;
             updateScreen();
         } else {
@@ -99,7 +100,7 @@ void UIController::printMainScreen() const {
     getOutputChannelFrequency(outputChannels_[0], frequencyBuffer);
     lcd_.print(frequencyBuffer);
 
-    lcd_.setCursor(1, 0);
+    lcd_.setCursor(0, 1);
     if (outputChannelIndex_ == 1) {
         lcd_.print(F(">CH1: "));
     } else {
@@ -108,7 +109,7 @@ void UIController::printMainScreen() const {
     getOutputChannelFrequency(outputChannels_[1], frequencyBuffer);
     lcd_.print(frequencyBuffer);
 
-    lcd_.setCursor(2, 0);
+    lcd_.setCursor(0, 2);
     if (outputChannelIndex_ == 2) {
         lcd_.print(F(">CH2: "));
     } else {
@@ -117,7 +118,7 @@ void UIController::printMainScreen() const {
     getOutputChannelFrequency(outputChannels_[2], frequencyBuffer);
     lcd_.print(frequencyBuffer);
 
-    lcd_.setCursor(3, 0);
+    lcd_.setCursor(0, 3);
     lcd_.print(F(" A:On B:Off C:Config"));
 
     lcd_.setCursor(0, outputChannelIndex_);
@@ -130,17 +131,17 @@ void UIController::printOutputChannelScreen() const {
     lcd_.print(F("Channel "));
     lcd_.print(outputChannelIndex_);
 
-    lcd_.setCursor(1, 0);
+    lcd_.setCursor(0, 1);
     lcd_.print(F("Set:   "));
     getOutputChannelFrequencyPadded(outputChannels_[outputChannelIndex_]->getSetFrequency(), frequencyBuffer);
     lcd_.print(frequencyBuffer);
 
-    lcd_.setCursor(2, 0);
+    lcd_.setCursor(0, 2);
     lcd_.print(F("Real:  "));
     getOutputChannelFrequencyPadded(outputChannels_[outputChannelIndex_]->getActualFrequency(), frequencyBuffer);
     lcd_.print(frequencyBuffer);
 
-    lcd_.setCursor(3, 0);
+    lcd_.setCursor(0, 3);
     lcd_.print(F("A|B|C: Back"));
 
     lcd_.setCursor(FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_].col + 7, 1);
