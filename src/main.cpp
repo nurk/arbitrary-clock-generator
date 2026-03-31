@@ -213,13 +213,16 @@ void initI2CDevices() {
         lcd.clear();
         Serial2.println(F("LCD initialized successfully"));
         lcd.setCursor(0, 0);
-        lcd.print(F("LCD initialized successfully"));
+        lcd.print(F("LCD initialized"));
     }
 
+        lcd.setCursor(0, 1);
     if (si5351.init(SI5351_CRYSTAL_LOAD_10PF, 0, 0)) {
         Serial2.println(F("SI5351 initialized successfully"));
+        lcd.print(F("SI5351 initialized"));
     } else {
         Serial2.println(F("Error: SI5351 not detected"));
+        lcd.print(F("SI5351 error"));
     }
 
     outputChannel0.turnOff();
