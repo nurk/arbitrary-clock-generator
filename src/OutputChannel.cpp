@@ -103,7 +103,7 @@ uint64_t OutputChannel::setTCBFrequency(const uint64_t frequencyCentiHz) const {
         return 0;
     }
 
-    const auto freqHz = static_cast<uint32_t>(static_cast<uint64_t>(frequencyCentiHz) / 100ULL);
+    const auto freqHz = static_cast<uint32_t>(frequencyCentiHz / 100UL);
 
     // Clock source selection — two ranges, trading minimum frequency for step resolution:
     //
