@@ -21,7 +21,7 @@ public:
     void updateScreen() const;
 
 private:
-    OutputChannel* getOutputChannel() const;
+    OutputChannel* getOutputChannel();
     void printMainScreen() const;
     void printOutputChannelScreen() const;
     static void getOutputChannelFrequency(const OutputChannel* outputChannel, char* out);

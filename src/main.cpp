@@ -79,8 +79,11 @@ UIController uiController(lcd,
                           encoder,
                           channels);
 
-void encoderTick() {
-    encoder.tick();
+ISR(PORTA_PORT_vect) {
+    if (PORTA.INTFLAGS & (PIN5_bm | PIN6_bm)) {
+        encoder.tick();
+        PORTA.INTFLAGS = PIN5_bm | PIN6_bm;
+    }
 }
 
 ISR(RTC_PIT_vect) {
@@ -228,6 +231,9 @@ void initI2CDevices() {
     outputChannel0.turnOff();
     outputChannel1.turnOff();
     outputChannel2.turnOff();
+    outputChannel0.loadFromEEPROM();
+    outputChannel1.loadFromEEPROM();
+    outputChannel2.loadFromEEPROM();
 }
 
 void initUserInputs() {
@@ -236,8 +242,10 @@ void initUserInputs() {
     buttonC.begin();
     rotaryButton.begin();
 
-    attachInterrupt(ROTARY_A, encoderTick, CHANGE);
-    attachInterrupt(ROTARY_B, encoderTick, CHANGE);
+    // Configure PA5 (ROTARY_B) and PA6 (ROTARY_A) to trigger a port interrupt on both edges.
+    // This replaces attachInterrupt() with direct register access — no overhead, no indirection.
+    PORTA.PIN5CTRL |= PORT_ISC_BOTHEDGES_gc;
+    PORTA.PIN6CTRL |= PORT_ISC_BOTHEDGES_gc;
 }
 
 void setup() {
@@ -253,41 +261,4 @@ void setup() {
 
 void loop() {
     uiController.processInputs();
-
-    // static uint32_t last = 0;
-    //
-    // if (millis() - last >= 500) {
-    //     last = millis();
-    //
-    //     // Frequencies in centi-Hz (0.01 Hz units), matching Si5351 set_freq() convention
-    //     static uint32_t f0 = 50000; //  500.00 Hz
-    //     static uint32_t f1 = 80000; //  800.00 Hz
-    //     static uint32_t f2 = 120000; // 1200.00 Hz
-    //
-    //     Serial2.print(F("TCB0 (OUTPUT0) set: "));
-    //     Serial2.print(static_cast<double>(f0) / 100.0, 2);
-    //     Serial2.print(F(" Hz, actual: "));
-    //     Serial2.print(static_cast<double>(outputChannel0.setFrequency(f0)) / 100.0, 2);
-    //     Serial2.println(F(" Hz"));
-    //
-    //     Serial2.print(F("TCB1 (OUTPUT1) set: "));
-    //     Serial2.print(static_cast<double>(f1) / 100.0, 2);
-    //     Serial2.print(F(" Hz, actual: "));
-    //     Serial2.print(static_cast<double>(outputChannel1.setFrequency(f1)) / 100.0, 2);
-    //     Serial2.println(F(" Hz"));
-    //
-    //     Serial2.print(F("TCB2 (OUTPUT2) set: "));
-    //     Serial2.print(static_cast<double>(f2) / 100.0, 2);
-    //     Serial2.print(F(" Hz, actual: "));
-    //     Serial2.print(static_cast<double>(outputChannel2.setFrequency(f2)) / 100.0, 2);
-    //     Serial2.println(F(" Hz"));
-    //
-    //     f0 += 10000; // +100.00 Hz
-    //     f1 += 15000; // +150.00 Hz
-    //     f2 += 20000; // +200.00 Hz
-    //
-    //     if (f0 > 500000) f0 = 50000;
-    //     if (f1 > 500000) f1 = 80000;
-    //     if (f2 > 500000) f2 = 120000;
-    // }
 }

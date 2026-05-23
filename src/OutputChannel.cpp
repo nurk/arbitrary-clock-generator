@@ -1,4 +1,5 @@
-#include "OutputChannel.h"
+#include <OutputChannel.h>
+#include <EEPROM.h>
 
 OutputChannel::OutputChannel(const uint8_t selectPin,
                              const uint8_t ledPin,
@@ -159,4 +160,30 @@ uint64_t OutputChannel::setTCBFrequency(const uint64_t frequencyCentiHz) const {
     tcb.CTRLA   = clkSel; // TCB_ENABLE_bm intentionally omitted — turnOn() sets it
 
     return actualHz_cHz;
+}
+
+void OutputChannel::saveToEEPROM() const {
+    EEPROM.put(getEEPROMOffset(), setFrequencyCentiHz_);
+}
+
+void OutputChannel::loadFromEEPROM() {
+    uint64_t readFrequencyCentiHz;
+    EEPROM.get(getEEPROMOffset(), readFrequencyCentiHz);
+    if (readFrequencyCentiHz > 9999999999ULL) {
+        readFrequencyCentiHz = 0;
+    }
+    this->setFrequency(readFrequencyCentiHz);
+}
+
+int OutputChannel::getEEPROMOffset() const {
+    switch (siClock) {
+        case SI5351_CLK0:
+            return 0;
+        case SI5351_CLK1:
+            return 16;
+        case SI5351_CLK2:
+            return 32;
+        default:
+            return 64; // should never happen
+    }
 }

@@ -17,6 +17,8 @@ public:
     uint64_t setFrequency(uint64_t frequencyCentiHz);
     uint64_t getActualFrequency() const;
     uint64_t getSetFrequency() const;
+    void saveToEEPROM() const;
+    void loadFromEEPROM();
 
 private:
     const uint8_t selectPin;
@@ -31,6 +33,7 @@ private:
 
     uint64_t setTCBFrequency(uint64_t frequencyCentiHz) const;
     uint64_t setSiFrequency(uint64_t frequencyCentiHz) const;
+    int getEEPROMOffset() const;
 };
 
 

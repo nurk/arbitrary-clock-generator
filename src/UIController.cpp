@@ -24,6 +24,8 @@ void UIController::processInputs() {
     buttonB_.read();
     buttonC_.read();
 
+    // test if this tick needs to stay
+    // rotaryEncoder_.tick();
     const long newEncoderPosition = rotaryEncoder_.getPosition();
     if (encoderPosition != newEncoderPosition) {
         const long diff = newEncoderPosition - encoderPosition;
@@ -45,27 +47,28 @@ void UIController::processInputs() {
     encoderPosition = newEncoderPosition;
 
     if (screen_ == MAIN) {
-        if (buttonA_.isPressed()) {
+        if (buttonA_.wasPressed()) {
             getOutputChannel()->turnOn();
             updateScreen();
         }
 
-        if (buttonB_.isPressed()) {
+        if (buttonB_.wasPressed()) {
             getOutputChannel()->turnOff();
             updateScreen();
         }
 
-        if (buttonC_.isPressed() || rotaryButton_.isPressed()) {
+        if (buttonC_.wasPressed() || rotaryButton_.wasPressed()) {
             screen_ = OUTPUT_CHANNEL;
             updateScreen();
         }
     } else {
-        if (buttonA_.isPressed() || buttonB_.isPressed() || buttonC_.isPressed()) {
+        if (buttonA_.wasPressed() || buttonB_.wasPressed() || buttonC_.wasPressed()) {
             screen_ = MAIN;
+            getOutputChannel()->saveToEEPROM();
             updateScreen();
         }
 
-        if (rotaryButton_.isPressed()) {
+        if (rotaryButton_.wasPressed()) {
             frequencyAdjustmentIndex_ = (frequencyAdjustmentIndex_ + 1) % NUMBER_OF_FREQUENCY_ADJUSTMENTS;
             updateScreen();
         }
@@ -195,6 +198,12 @@ void UIController::getOutputChannelFrequencyPadded(const uint64_t frequency, cha
     // Buffer must be at least 14 bytes.
 }
 
-OutputChannel* UIController::getOutputChannel() const {
+OutputChannel* UIController::getOutputChannel() {
+    if (outputChannelIndex_ < 0 || outputChannelIndex_ >= MAX_OUTPUT_CHANNELS) {
+        Serial2.print(F("UIController::getOutputChannel(): Invalid output channel index "));
+        Serial2.print(outputChannelIndex_);
+        Serial2.println(F(". Defaulting to 0."));
+        outputChannelIndex_ = 0;
+    }
     return outputChannels_[outputChannelIndex_];
 }
