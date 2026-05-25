@@ -180,7 +180,7 @@ void initI2CDevices() {
     }
 
     lcd.setCursor(0, 1);
-    if (si5351.init(SI5351_CRYSTAL_LOAD_10PF, 0, -27840)) {
+    if (si5351.init(SI5351_CRYSTAL_LOAD_10PF, 0, -27740)) {
         Serial2.println(F("SI5351 initialized successfully"));
         lcd.print(F("SI5351 initialized"));
     } else {
