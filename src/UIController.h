@@ -16,7 +16,7 @@ public:
                  Button& buttonC,
                  Button& rotaryButton,
                  RotaryEncoder& rotaryEncoder,
-                 OutputChannel* outputChannels[3]);
+                 OutputChannel* outputChannels[2]);
     void processInputs();
     void updateScreen() const;
 

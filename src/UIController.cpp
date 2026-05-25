@@ -165,11 +165,13 @@ void UIController::getOutputChannelFrequency(const OutputChannel* outputChannel,
 
     char tmp[15];
     if (g2 > 0) {
-        sprintf(tmp, "%lu.%03lu.%03lu,%02lu", g2, g1, g0, decimal);
+        sprintf(tmp, "%lu.%03lu.%03lu,%02lu", static_cast<uint32_t>(g2), static_cast<uint32_t>(g1),
+                static_cast<uint32_t>(g0), static_cast<uint32_t>(decimal));
     } else if (g1 > 0) {
-        sprintf(tmp, "%lu.%03lu,%02lu", g1, g0, decimal);
+        sprintf(tmp, "%lu.%03lu,%02lu", static_cast<uint32_t>(g1), static_cast<uint32_t>(g0),
+                static_cast<uint32_t>(decimal));
     } else {
-        sprintf(tmp, "%lu,%02lu", g0, decimal);
+        sprintf(tmp, "%lu,%02lu", static_cast<uint32_t>(g0), static_cast<uint32_t>(decimal));
     }
 
     // Right-align in 14 chars
@@ -193,7 +195,8 @@ void UIController::getOutputChannelFrequencyPadded(const uint64_t frequency, cha
     const uint64_t g1 = (hz / 1000UL) % 1000UL; // kHz group (0–999)
     const uint64_t g2 = (hz / 1000000UL) % 100UL; // MHz group (0–99)
 
-    sprintf(out, "%02lu.%03lu.%03lu,%02lu", g2, g1, g0, decimal);
+    sprintf(out, "%02lu.%03lu.%03lu,%02lu", static_cast<uint32_t>(g2), static_cast<uint32_t>(g1),
+            static_cast<uint32_t>(g0), static_cast<uint32_t>(decimal));
     // Result is always exactly 13 characters + NUL terminator.
     // Buffer must be at least 14 bytes.
 }

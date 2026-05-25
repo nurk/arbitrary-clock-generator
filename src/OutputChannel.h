@@ -8,7 +8,7 @@ class OutputChannel {
 public:
     OutputChannel(uint8_t selectPin,
                   uint8_t ledPin,
-                  TCB_t& tcb,
+                  TCB_t* tcb,
                   Si5351& si5351,
                   si5351_clock siClock);
 
@@ -23,7 +23,7 @@ public:
 private:
     const uint8_t selectPin;
     const uint8_t ledPin;
-    TCB_t& tcb;
+    TCB_t* tcb;
     Si5351& si5351;
     const si5351_clock siClock;
     uint64_t actualFrequencyCentiHz_    = 0;

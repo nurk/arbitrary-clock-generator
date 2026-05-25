@@ -3,7 +3,7 @@
 
 OutputChannel::OutputChannel(const uint8_t selectPin,
                              const uint8_t ledPin,
-                             TCB_t& tcb,
+                             TCB_t* tcb,
                              Si5351& si5351,
                              const si5351_clock siClock) :
     selectPin(selectPin),
@@ -15,7 +15,7 @@ OutputChannel::OutputChannel(const uint8_t selectPin,
 
 void OutputChannel::turnOff() {
     digitalWrite(ledPin, LOW);
-    tcb.CTRLA &= ~TCB_ENABLE_bm;
+    if (tcb != nullptr) tcb->CTRLA &= ~TCB_ENABLE_bm;
     si5351.output_enable(siClock, 0);
     isOn_ = false;
 }
@@ -24,8 +24,8 @@ void OutputChannel::turnOn() {
     digitalWrite(ledPin, HIGH);
 
     if (setFrequencyCentiHz_ <= SWITCHOVER_FREQUENCY) {
-        if (setFrequencyCentiHz_ != 0) {
-            tcb.CTRLA |= TCB_ENABLE_bm;
+        if (setFrequencyCentiHz_ != 0 && tcb != nullptr) {
+            tcb->CTRLA |= TCB_ENABLE_bm;
         }
     } else {
         si5351.output_enable(siClock, 1);
@@ -48,7 +48,11 @@ uint64_t OutputChannel::setFrequency(const uint64_t frequencyCentiHz) {
     setFrequencyCentiHz_ = frequencyCentiHz;
 
     if (frequencyCentiHz <= SWITCHOVER_FREQUENCY) {
-        actualFrequencyCentiHz_ = setTCBFrequency(frequencyCentiHz);
+        if (tcb != nullptr) {
+            actualFrequencyCentiHz_ = setTCBFrequency(frequencyCentiHz);
+        } else {
+            actualFrequencyCentiHz_ = 0;
+        }
     } else {
         actualFrequencyCentiHz_ = setSiFrequency(frequencyCentiHz);
     }
@@ -99,8 +103,9 @@ uint64_t OutputChannel::setTCBFrequency(const uint64_t frequencyCentiHz) const {
     digitalWrite(selectPin, HIGH);
 
     if (frequencyCentiHz == 0) {
-        tcb.CTRLA   = 0;
-        tcb.INTCTRL = 0;
+        tcb->CTRLA   = 0;
+        tcb->INTCTRL = 0;
+
         return 0;
     }
 
@@ -153,11 +158,11 @@ uint64_t OutputChannel::setTCBFrequency(const uint64_t frequencyCentiHz) const {
     const auto actualHz_cHz = static_cast<uint32_t>(
         static_cast<uint64_t>(clkHz) * 100ULL / (2ULL * half));
 
-    tcb.CTRLA   = 0;
-    tcb.CTRLB   = TCB_CNTMODE_INT_gc;
-    tcb.CCMP    = ccmp;
-    tcb.INTCTRL = TCB_CAPT_bm;
-    tcb.CTRLA   = clkSel; // TCB_ENABLE_bm intentionally omitted — turnOn() sets it
+    tcb->CTRLA   = 0;
+    tcb->CTRLB   = TCB_CNTMODE_INT_gc;
+    tcb->CCMP    = ccmp;
+    tcb->INTCTRL = TCB_CAPT_bm;
+    tcb->CTRLA   = clkSel; // TCB_ENABLE_bm intentionally omitted — turnOn() sets it
 
     return actualHz_cHz;
 }

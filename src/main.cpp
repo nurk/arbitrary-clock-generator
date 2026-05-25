@@ -54,21 +54,22 @@ Si5351 si5351;
 
 OutputChannel outputChannel0(SELECT0,
                              OUTPUT_LED0,
-                             TCB0,
+                             &TCB0,
                              si5351,
                              SI5351_CLK0);
 
 OutputChannel outputChannel1(SELECT1,
                              OUTPUT_LED1,
-                             TCB1,
+                             &TCB1,
                              si5351,
                              SI5351_CLK1);
 
 OutputChannel outputChannel2(SELECT2,
                              OUTPUT_LED2,
-                             TCB2,
+                             (TCB_t*)nullptr,
                              si5351,
                              SI5351_CLK2);
+
 
 OutputChannel* channels[3] = {&outputChannel0, &outputChannel1, &outputChannel2};
 UIController uiController(lcd,
@@ -84,24 +85,6 @@ ISR(PORTA_PORT_vect) {
         encoder.tick();
         PORTA.INTFLAGS = PIN5_bm | PIN6_bm;
     }
-}
-
-ISR(RTC_PIT_vect) {
-    rtcMillis++;
-    RTC.PITINTFLAGS = RTC_PI_bm;
-}
-
-unsigned long millis() {
-    // rtcMillis is 32-bit, written entirely inside an ISR. Read it twice without
-    // masking interrupts: if the ISR fires between the two reads the values will
-    // differ, so retry. Typically zero retries; at most one on the rare tick boundary.
-    unsigned long a, b;
-    do {
-        a = rtcMillis;
-        b = rtcMillis;
-    }
-    while (a != b);
-    return a;
 }
 
 // TCB INT mode — pin toggled manually in ISR.
@@ -141,11 +124,6 @@ ISR(TCB1_INT_vect) {
     TCB1.INTFLAGS = TCB_CAPT_bm;
 }
 
-ISR(TCB2_INT_vect) {
-    PORTC.OUTTGL  = PIN0_bm; // toggle OUTPUT2 (PC0)
-    TCB2.INTFLAGS = TCB_CAPT_bm;
-}
-
 void initPins() {
     pinMode(BUTTON_A, INPUT_PULLUP);
     pinMode(BUTTON_B, INPUT_PULLUP);
@@ -172,24 +150,6 @@ void initPins() {
     digitalWriteFast(OUTPUT0, LOW);
     digitalWriteFast(OUTPUT1, LOW);
     digitalWriteFast(OUTPUT2, LOW);
-}
-
-void initRTCMillis() {
-    // Disable TCB2, which the MegaCoreX core starts in init() as its millis() timer.
-    // Stopping TCB2 here frees it completely so it is available for other use.
-    TCB2.CTRLA    = 0; // disable & stop TCB2
-    TCB2.INTCTRL  = 0; // disable TCB2 interrupt
-    TCB2.INTFLAGS = TCB_CAPT_bm; // clear any pending flag
-
-    // Configure the RTC Periodic Interrupt Timer (PIT) on the internal 32 kHz oscillator.
-    // CYC32 => 32 cycles @ 32768 Hz = ~976 µs ≈ 1 ms per tick.
-    RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
-
-    while (RTC.STATUS > 0) {
-    }
-
-    RTC.PITINTCTRL = RTC_PI_bm;
-    RTC.PITCTRLA   = RTC_PERIOD_CYC32_gc | RTC_PITEN_bm;
 }
 
 void initTCA() {
@@ -220,7 +180,7 @@ void initI2CDevices() {
     }
 
     lcd.setCursor(0, 1);
-    if (si5351.init(SI5351_CRYSTAL_LOAD_10PF, 0, 0)) {
+    if (si5351.init(SI5351_CRYSTAL_LOAD_10PF, 0, -27840)) {
         Serial2.println(F("SI5351 initialized successfully"));
         lcd.print(F("SI5351 initialized"));
     } else {
@@ -228,12 +188,14 @@ void initI2CDevices() {
         lcd.print(F("SI5351 error"));
     }
 
-    outputChannel0.turnOff();
-    outputChannel1.turnOff();
-    outputChannel2.turnOff();
     outputChannel0.loadFromEEPROM();
     outputChannel1.loadFromEEPROM();
     outputChannel2.loadFromEEPROM();
+
+    outputChannel0.turnOff();
+    outputChannel1.turnOff();
+    outputChannel2.turnOff();
+
 }
 
 void initUserInputs() {
@@ -252,7 +214,6 @@ void setup() {
     Serial2.begin(115200);
 
     initPins();
-    initRTCMillis();
     initTCA();
     initI2CDevices();
     initUserInputs();
