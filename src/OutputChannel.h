@@ -14,6 +14,7 @@ public:
 
     void turnOff();
     void turnOn();
+    void toggle();
     uint64_t setFrequency(uint64_t frequencyCentiHz);
     uint64_t getActualFrequency() const;
     uint64_t getSetFrequency() const;

@@ -25,7 +25,7 @@ void UIController::processInputs() {
     buttonC_.read();
 
     // test if this tick needs to stay
-    // rotaryEncoder_.tick();
+    rotaryEncoder_.tick();
     const long newEncoderPosition = rotaryEncoder_.getPosition();
     if (encoderPosition != newEncoderPosition) {
         const long diff = newEncoderPosition - encoderPosition;
@@ -48,12 +48,14 @@ void UIController::processInputs() {
 
     if (screen_ == MAIN) {
         if (buttonA_.wasPressed()) {
-            getOutputChannel()->turnOn();
+            getOutputChannel()->toggle();
             updateScreen();
         }
 
         if (buttonB_.wasPressed()) {
-            getOutputChannel()->turnOff();
+            for (int i = 0; i < MAX_OUTPUT_CHANNELS; i++) {
+                outputChannels_[i]->toggle();
+            }
             updateScreen();
         }
 
@@ -78,7 +80,6 @@ void UIController::processInputs() {
 void UIController::updateScreen() const {
     lcd_.noCursor();
     lcd_.noBlink();
-    lcd_.clear();
     switch (screen_) {
         case MAIN:
             printMainScreen();
@@ -122,7 +123,7 @@ void UIController::printMainScreen() const {
     lcd_.print(frequencyBuffer);
 
     lcd_.setCursor(0, 3);
-    lcd_.print(F(" A:On B:Off C:Config"));
+    lcd_.print(F("A:Tgl B:TglAll C:Cfg"));
 
     lcd_.setCursor(0, outputChannelIndex_);
     lcd_.blink();
@@ -145,7 +146,7 @@ void UIController::printOutputChannelScreen() const {
     lcd_.print(frequencyBuffer);
 
     lcd_.setCursor(0, 3);
-    lcd_.print(F("A|B|C: Back"));
+    lcd_.print(F("A|B|C: Back         "));
 
     lcd_.setCursor(FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_].col + 7, 1);
     lcd_.cursor();

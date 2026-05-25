@@ -33,6 +33,14 @@ void OutputChannel::turnOn() {
     isOn_ = true;
 }
 
+void OutputChannel::toggle() {
+    if (isOn_) {
+        turnOff();
+    } else {
+        turnOn();
+    }
+}
+
 uint64_t OutputChannel::getActualFrequency() const {
     return actualFrequencyCentiHz_;
 }
