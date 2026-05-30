@@ -2,11 +2,12 @@
 #define ARBITRARY_CLOCK_GENERATOR_UICONTROLLER_H
 
 // ReSharper disable CppUnusedIncludeDirective
-#include <OutputChannel.h>
+#include <Wire.h>
 #include <hd44780.h>
 #include <hd44780ioClass/hd44780_I2Cexp.h>
 #include <JC_Button.h>
 #include <RotaryEncoder.h>
+#include <OutputChannel.h>
 
 class UIController {
 public:
@@ -27,22 +28,22 @@ private:
     static void getOutputChannelFrequency(const OutputChannel* outputChannel, char* out);
     static void getOutputChannelFrequencyPadded(uint64_t frequency, char* out);
 
-    hd44780_I2Cexp& lcd_;
-    Button& buttonA_;
-    Button& buttonB_;
-    Button& buttonC_;
-    Button& rotaryButton_;
-    RotaryEncoder& rotaryEncoder_;
-    OutputChannel* outputChannels_[3];
+    hd44780_I2Cexp& lcd;
+    Button& buttonA;
+    Button& buttonB;
+    Button& buttonC;
+    Button& rotaryButton;
+    RotaryEncoder& rotaryEncoder;
+    OutputChannel* outputChannels[3];
 
     enum Screen {
         MAIN,
         OUTPUT_CHANNEL
     };
 
-    Screen screen_                = MAIN;
+    Screen screen                 = MAIN;
     long encoderPosition          = 0;
-    int outputChannelIndex_       = 0;
+    int outputChannelIndex        = 0;
     const int MAX_OUTPUT_CHANNELS = 3;
 
     const int64_t FREQUENCY_MAX = 9999999999LL;
@@ -65,7 +66,7 @@ private:
         {11, 10},
         {12, 1}
     };
-    int frequencyAdjustmentIndex_             = 0;
+    int frequencyAdjustmentIndex              = 0;
     const int NUMBER_OF_FREQUENCY_ADJUSTMENTS = 10;
 };
 

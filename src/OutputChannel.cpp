@@ -15,26 +15,28 @@ OutputChannel::OutputChannel(const uint8_t selectPin,
 
 void OutputChannel::turnOff() {
     digitalWrite(ledPin, LOW);
-    if (tcb != nullptr) tcb->CTRLA &= ~TCB_ENABLE_bm;
+    if (tcb != nullptr) {
+        tcb->CTRLA &= ~TCB_ENABLE_bm;
+    }
     si5351.output_enable(siClock, 0);
-    isOn_ = false;
+    isOn = false;
 }
 
 void OutputChannel::turnOn() {
     digitalWrite(ledPin, HIGH);
 
-    if (setFrequencyCentiHz_ <= SWITCHOVER_FREQUENCY) {
-        if (setFrequencyCentiHz_ != 0 && tcb != nullptr) {
+    if (setFrequencyCentiHz <= SWITCHOVER_FREQUENCY) {
+        if (setFrequencyCentiHz != 0 && tcb != nullptr) {
             tcb->CTRLA |= TCB_ENABLE_bm;
         }
     } else {
         si5351.output_enable(siClock, 1);
     }
-    isOn_ = true;
+    isOn = true;
 }
 
 void OutputChannel::toggle() {
-    if (isOn_) {
+    if (isOn) {
         turnOff();
     } else {
         turnOn();
@@ -42,34 +44,34 @@ void OutputChannel::toggle() {
 }
 
 uint64_t OutputChannel::getActualFrequency() const {
-    return actualFrequencyCentiHz_;
+    return actualFrequencyCentiHz;
 }
 
 uint64_t OutputChannel::getSetFrequency() const {
-    return setFrequencyCentiHz_;
+    return setFrequencyCentiHz;
 }
 
 uint64_t OutputChannel::setFrequency(const uint64_t frequencyCentiHz) {
-    const boolean wasOn = isOn_;
+    const boolean wasOn = isOn;
     turnOff();
 
-    setFrequencyCentiHz_ = frequencyCentiHz;
+    setFrequencyCentiHz = frequencyCentiHz;
 
     if (frequencyCentiHz <= SWITCHOVER_FREQUENCY) {
         if (tcb != nullptr) {
-            actualFrequencyCentiHz_ = setTCBFrequency(frequencyCentiHz);
+            actualFrequencyCentiHz = setTCBFrequency(frequencyCentiHz);
         } else {
-            actualFrequencyCentiHz_ = 0;
+            actualFrequencyCentiHz = 0;
         }
     } else {
-        actualFrequencyCentiHz_ = setSiFrequency(frequencyCentiHz);
+        actualFrequencyCentiHz = setSiFrequency(frequencyCentiHz);
     }
 
     if (wasOn) {
         turnOn();
     }
 
-    return actualFrequencyCentiHz_;
+    return actualFrequencyCentiHz;
 }
 
 uint64_t OutputChannel::setSiFrequency(const uint64_t frequencyCentiHz) const {
@@ -176,7 +178,7 @@ uint64_t OutputChannel::setTCBFrequency(const uint64_t frequencyCentiHz) const {
 }
 
 void OutputChannel::saveToEEPROM() const {
-    EEPROM.put(getEEPROMOffset(), setFrequencyCentiHz_);
+    EEPROM.put(getEEPROMOffset(), setFrequencyCentiHz);
 }
 
 void OutputChannel::loadFromEEPROM() {

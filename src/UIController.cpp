@@ -7,37 +7,37 @@ UIController::UIController(hd44780_I2Cexp& lcd, // NOLINT(*-pro-type-member-init
                            Button& rotaryButton,
                            RotaryEncoder& rotaryEncoder,
                            OutputChannel* outputChannels[3]) :
-    lcd_(lcd),
-    buttonA_(buttonA),
-    buttonB_(buttonB),
-    buttonC_(buttonC),
-    rotaryButton_(rotaryButton),
-    rotaryEncoder_(rotaryEncoder) {
+    lcd(lcd),
+    buttonA(buttonA),
+    buttonB(buttonB),
+    buttonC(buttonC),
+    rotaryButton(rotaryButton),
+    rotaryEncoder(rotaryEncoder) {
     for (int i = 0; i < 3; i++) {
-        outputChannels_[i] = outputChannels[i];
+        this->outputChannels[i] = outputChannels[i];
     }
 }
 
 void UIController::processInputs() {
-    rotaryButton_.read();
-    buttonA_.read();
-    buttonB_.read();
-    buttonC_.read();
+    rotaryButton.read();
+    buttonA.read();
+    buttonB.read();
+    buttonC.read();
 
     // test if this tick needs to stay
-    rotaryEncoder_.tick();
-    const long newEncoderPosition = rotaryEncoder_.getPosition();
+    rotaryEncoder.tick();
+    const long newEncoderPosition = rotaryEncoder.getPosition();
     if (encoderPosition != newEncoderPosition) {
         const long diff = newEncoderPosition - encoderPosition;
-        if (screen_ == MAIN) {
-            outputChannelIndex_ = static_cast<int>(outputChannelIndex_ + diff % MAX_OUTPUT_CHANNELS +
+        if (screen == MAIN) {
+            outputChannelIndex = static_cast<int>(outputChannelIndex + diff % MAX_OUTPUT_CHANNELS +
                     MAX_OUTPUT_CHANNELS) %
                 MAX_OUTPUT_CHANNELS;
             updateScreen();
         } else {
             OutputChannel* outputChannel = getOutputChannel();
             const int64_t newFreq        = static_cast<int64_t>(outputChannel->getSetFrequency())
-                + diff * FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_].delta;
+                + diff * FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex].delta;
             outputChannel->setFrequency(
                 static_cast<uint64_t>(max(FREQUENCY_MIN, min(FREQUENCY_MAX, newFreq)))
             );
@@ -46,41 +46,41 @@ void UIController::processInputs() {
     }
     encoderPosition = newEncoderPosition;
 
-    if (screen_ == MAIN) {
-        if (buttonA_.wasPressed()) {
+    if (screen == MAIN) {
+        if (buttonA.wasPressed()) {
             getOutputChannel()->toggle();
             updateScreen();
         }
 
-        if (buttonB_.wasPressed()) {
+        if (buttonB.wasPressed()) {
             for (int i = 0; i < MAX_OUTPUT_CHANNELS; i++) {
-                outputChannels_[i]->toggle();
+                outputChannels[i]->toggle();
             }
             updateScreen();
         }
 
-        if (buttonC_.wasPressed() || rotaryButton_.wasPressed()) {
-            screen_ = OUTPUT_CHANNEL;
+        if (buttonC.wasPressed() || rotaryButton.wasPressed()) {
+            screen = OUTPUT_CHANNEL;
             updateScreen();
         }
     } else {
-        if (buttonA_.wasPressed() || buttonB_.wasPressed() || buttonC_.wasPressed()) {
-            screen_ = MAIN;
+        if (buttonA.wasPressed() || buttonB.wasPressed() || buttonC.wasPressed()) {
+            screen = MAIN;
             getOutputChannel()->saveToEEPROM();
             updateScreen();
         }
 
-        if (rotaryButton_.wasPressed()) {
-            frequencyAdjustmentIndex_ = (frequencyAdjustmentIndex_ + 1) % NUMBER_OF_FREQUENCY_ADJUSTMENTS;
+        if (rotaryButton.wasPressed()) {
+            frequencyAdjustmentIndex = (frequencyAdjustmentIndex + 1) % NUMBER_OF_FREQUENCY_ADJUSTMENTS;
             updateScreen();
         }
     }
 }
 
 void UIController::updateScreen() const {
-    lcd_.noCursor();
-    lcd_.noBlink();
-    switch (screen_) {
+    lcd.noCursor();
+    lcd.noBlink();
+    switch (screen) {
         case MAIN:
             printMainScreen();
             break;
@@ -95,61 +95,62 @@ void UIController::updateScreen() const {
 
 void UIController::printMainScreen() const {
     char frequencyBuffer[15];
-    lcd_.setCursor(0, 0);
-    if (outputChannelIndex_ == 0) {
-        lcd_.print(F(">CH0: "));
+    lcd.setCursor(0, 0);
+    if (outputChannelIndex == 0) {
+        lcd.print(F(">CH0: "));
     } else {
-        lcd_.print(F(" CH0: "));
+        lcd.print(F(" CH0: "));
     }
-    getOutputChannelFrequency(outputChannels_[0], frequencyBuffer);
-    lcd_.print(frequencyBuffer);
+    getOutputChannelFrequency(outputChannels[0], frequencyBuffer);
+    lcd.print(frequencyBuffer);
 
-    lcd_.setCursor(0, 1);
-    if (outputChannelIndex_ == 1) {
-        lcd_.print(F(">CH1: "));
+    lcd.setCursor(0, 1);
+    if (outputChannelIndex == 1) {
+        lcd.print(F(">CH1: "));
     } else {
-        lcd_.print(F(" CH1: "));
+        lcd.print(F(" CH1: "));
     }
-    getOutputChannelFrequency(outputChannels_[1], frequencyBuffer);
-    lcd_.print(frequencyBuffer);
+    getOutputChannelFrequency(outputChannels[1], frequencyBuffer);
+    lcd.print(frequencyBuffer);
 
-    lcd_.setCursor(0, 2);
-    if (outputChannelIndex_ == 2) {
-        lcd_.print(F(">CH2: "));
+    lcd.setCursor(0, 2);
+    if (outputChannelIndex == 2) {
+        lcd.print(F(">CH2: "));
     } else {
-        lcd_.print(F(" CH2: "));
+        lcd.print(F(" CH2: "));
     }
-    getOutputChannelFrequency(outputChannels_[2], frequencyBuffer);
-    lcd_.print(frequencyBuffer);
+    getOutputChannelFrequency(outputChannels[2], frequencyBuffer);
+    lcd.print(frequencyBuffer);
 
-    lcd_.setCursor(0, 3);
-    lcd_.print(F("A:Tgl B:TglAll C:Cfg"));
+    lcd.setCursor(0, 3);
+    lcd.print(F("A:Tgl B:TglAll C:Cfg"));
 
-    lcd_.setCursor(0, outputChannelIndex_);
-    lcd_.blink();
+    lcd.setCursor(0, outputChannelIndex);
+    lcd.blink();
 }
 
 void UIController::printOutputChannelScreen() const {
     char frequencyBuffer[14];
-    lcd_.setCursor(0, 0);
-    lcd_.print(F("Channel "));
-    lcd_.print(outputChannelIndex_);
+    lcd.setCursor(0, 0);
+    lcd.print(F("Channel "));
+    lcd.print(outputChannelIndex);
+    lcd.print(F("           "));
 
-    lcd_.setCursor(0, 1);
-    lcd_.print(F("Set:   "));
-    getOutputChannelFrequencyPadded(outputChannels_[outputChannelIndex_]->getSetFrequency(), frequencyBuffer);
-    lcd_.print(frequencyBuffer);
+    lcd.setCursor(0, 1);
+    lcd.print(F("Set:   "));
+    getOutputChannelFrequencyPadded(outputChannels[outputChannelIndex]->getSetFrequency(), frequencyBuffer);
+    lcd.print(frequencyBuffer);
 
-    lcd_.setCursor(0, 2);
-    lcd_.print(F("Real:  "));
-    getOutputChannelFrequencyPadded(outputChannels_[outputChannelIndex_]->getActualFrequency(), frequencyBuffer);
-    lcd_.print(frequencyBuffer);
+    lcd.setCursor(0, 2);
+    lcd.print(F("Real:  "));
+    getOutputChannelFrequencyPadded(outputChannels[outputChannelIndex]->getActualFrequency(), frequencyBuffer);
+    lcd.print(frequencyBuffer);
 
-    lcd_.setCursor(0, 3);
-    lcd_.print(F("A|B|C: Back         "));
+    lcd.setCursor(0, 3);
+    lcd.print(F("A|B|C: Back         "));
 
-    lcd_.setCursor(FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex_].col + 7, 1);
-    lcd_.cursor();
+    lcd.setCursor(FREQUENCY_ADJUSTMENTS[frequencyAdjustmentIndex].col + 7, 1);
+    lcd.cursor();
 }
 
 void UIController::getOutputChannelFrequency(const OutputChannel* outputChannel, char* out) {
@@ -203,11 +204,11 @@ void UIController::getOutputChannelFrequencyPadded(const uint64_t frequency, cha
 }
 
 OutputChannel* UIController::getOutputChannel() {
-    if (outputChannelIndex_ < 0 || outputChannelIndex_ >= MAX_OUTPUT_CHANNELS) {
+    if (outputChannelIndex < 0 || outputChannelIndex >= MAX_OUTPUT_CHANNELS) {
         Serial2.print(F("UIController::getOutputChannel(): Invalid output channel index "));
-        Serial2.print(outputChannelIndex_);
+        Serial2.print(outputChannelIndex);
         Serial2.println(F(". Defaulting to 0."));
-        outputChannelIndex_ = 0;
+        outputChannelIndex = 0;
     }
-    return outputChannels_[outputChannelIndex_];
+    return outputChannels[outputChannelIndex];
 }

@@ -12,16 +12,18 @@
  **/
 
 #include <Arduino.h>
-#include <JC_Button.h>
-#include <RotaryEncoder.h>
 #include <Wire.h>
-#include <hd44780.h>
-#include <hd44780ioClass/hd44780_I2Cexp.h>
-#include <si5351.h>
-#include <OutputChannel.h>
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+
+#include <JC_Button.h>
+#include <RotaryEncoder.h>
+#include <hd44780.h>
+#include <hd44780ioClass/hd44780_I2Cexp.h>
+#include <si5351.h>
+
+#include <OutputChannel.h>
 #include <UIController.h>
 
 #define OUTPUT0 PIN_PA2
@@ -66,7 +68,7 @@ OutputChannel outputChannel1(SELECT1,
 
 OutputChannel outputChannel2(SELECT2,
                              OUTPUT_LED2,
-                             (TCB_t*)nullptr,
+                             nullptr,
                              si5351,
                              SI5351_CLK2);
 
@@ -98,7 +100,7 @@ ISR(PORTA_PORT_vect) {
 // output pin directly via the PORT OUTTGL register (~3 cycles). This gives:
 //   • Full 16-bit CCMP resolution
 //   • True 50% duty cycle (equal half-periods)
-//   • f = clkHz / (2 * (CCMP + 1))
+//   • f = clkHz / (2 × (CCMP + 1))
 //
 // Clock source: CLKTCA = 1 MHz (TCA0 reconfigured to DIV16 in initTCA).
 // ISR overhead at 10 kHz: fires 20 000×/sec, ~800 cycles between calls → <2% CPU.

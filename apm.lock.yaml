@@ -1,0 +1,14 @@
+lockfile_version: '1'
+generated_at: '2026-05-30T04:59:35.756197+00:00'
+apm_version: 0.16.0
+dependencies:
+- repo_url: nurk/apm-packages
+  host: github.com
+  resolved_commit: 224af8edb50763d9bf93b704d54839bd1e6dbd91
+  resolved_ref: master
+  virtual_path: cpp-embedded-style
+  is_virtual: true
+  package_type: apm_package
+  deployed_files:
+  - .agents/skills/cpp-embedded-style
+  content_hash: sha256:f25077b31b1c47ed0d1d2802be9c6f10abca52d509db61be980a58f654337a72

@@ -1,0 +1,14 @@
+name: arbitrary-clock-generator
+version: 1.0.0
+description: APM project for arbitrary-clock-generator
+author: Tom Briers
+targets:
+- copilot
+dependencies:
+  apm:
+    - git: github.com/nurk/apm-packages
+      path: cpp-embedded-style
+      ref: master
+  mcp: []
+includes: auto
+scripts: {}

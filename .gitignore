@@ -2,3 +2,10 @@
 /logs/
 .idea
 .DS_Store
+
+
+# APM dependencies
+apm_modules/
+/.agents/
+/.github/agents/
+/.github/hooks/
